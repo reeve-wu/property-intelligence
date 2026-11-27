@@ -1,0 +1,574 @@
+<meta charset="utf-8">
+<title>NSW Suburb Prices</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one working column. Search bar, suburb headline with four figures,
+   price chart, volume chart, recent sales register. Cool slate neutrals, house blue, unit orange. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --ink: #161a21;
+  --ink-2: #5b6370;
+  --ink-3: #8a919c;
+  --rule: #e3e6ea;
+  --axis: #c3c8cf;
+  --accent: #1d4f91;
+  --accent-wash: #e8eef7;
+  --house: #257de0;
+  --unit: #f47230;
+  --up: #0f7a2a;
+  --down: #c23b3b;
+  --ring: rgba(17, 24, 39, 0.10);
+  --shadow: 0 1px 2px rgba(17, 24, 39, .05), 0 8px 24px rgba(17, 24, 39, .06);
+  --f-display: "Archivo", "Inter", system-ui, sans-serif;
+  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1216; --surface: #171b21; --ink: #eceef1; --ink-2: #a1a8b3; --ink-3: #737b87;
+    --rule: #262c34; --axis: #3d444e; --accent: #8db4ec; --accent-wash: #1c2633;
+    --house: #338ced; --unit: #e76624; --up: #53c556; --down: #ef6b6b;
+    --ring: rgba(255, 255, 255, 0.10); --shadow: none; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1216; --surface: #171b21; --ink: #eceef1; --ink-2: #a1a8b3; --ink-3: #737b87;
+  --rule: #262c34; --axis: #3d444e; --accent: #8db4ec; --accent-wash: #1c2633;
+  --house: #338ced; --unit: #e76624; --up: #53c556; --down: #ef6b6b;
+  --ring: rgba(255, 255, 255, 0.10); --shadow: none; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 14px/1.5 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 48px;
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
+.brand { font: 600 13px/1 var(--f-display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); display: flex; gap: 8px; align-items: center; }
+.brand b { color: var(--ink); }
+.search { position: relative; flex: 1 1 320px; max-width: 460px; }
+.search input {
+  width: 100%; font: 500 15px var(--f-body); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--rule); border-radius: 10px; padding: 11px 14px 11px 38px; outline: none;
+  box-shadow: var(--shadow);
+}
+.search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-wash); }
+.search svg { position: absolute; left: 12px; top: 50%; translate: 0 -50%; color: var(--ink-3); pointer-events: none; }
+.list {
+  position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; right: 0; margin: 0; padding: 4px; list-style: none;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; box-shadow: var(--shadow);
+  max-height: 320px; overflow-y: auto;
+}
+.list li { padding: 8px 10px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; gap: 12px; }
+.list li[aria-selected="true"], .list li:hover { background: var(--accent-wash); }
+.list li span { color: var(--ink-3); font: 12px var(--f-mono); }
+.list .empty { color: var(--ink-3); cursor: default; }
+
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 20px; min-width: 0; }
+.head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+h1 { font: 700 clamp(28px, 5vw, 40px)/1.05 var(--f-display); letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+.pc { font: 500 15px var(--f-mono); color: var(--ink-2); }
+.sub { color: var(--ink-2); margin: 6px 0 0; font-size: 13px; }
+
+.figs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; margin-top: 18px; }
+.fig { background: var(--surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.fig .k { font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
+.fig .v { font: 600 26px/1.15 var(--f-display); letter-spacing: -.01em; }
+.fig .n { font-size: 12px; color: var(--ink-3); }
+.sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+.sw.h { background: var(--house); } .sw.u { background: var(--unit); }
+.delta { font-weight: 600; }
+.delta.up { color: var(--up); } .delta.dn { color: var(--down); }
+
+.chead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px 16px; margin-bottom: 8px; }
+h2 { font: 600 16px var(--f-display); margin: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--ink-2); align-items: center; }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+.lgline { width: 18px; height: 0; border-top: 2px solid; display: inline-block; }
+.lgline.dash { border-top-style: dashed; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.seg { display: inline-flex; background: var(--bg); border: 1px solid var(--rule); border-radius: 8px; padding: 2px; }
+.seg button { font: 500 12px var(--f-body); color: var(--ink-2); background: none; border: 0; padding: 5px 10px; border-radius: 6px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--ring); }
+.chk { font-size: 12px; color: var(--ink-2); display: inline-flex; gap: 6px; align-items: center; cursor: pointer; user-select: none; }
+.chk input { accent-color: var(--accent); margin: 0; }
+button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.chart { position: relative; width: 100%; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart text { font: 11px var(--f-body); fill: var(--ink-2); font-variant-numeric: tabular-nums; }
+.tip {
+  position: absolute; pointer-events: none; z-index: 5; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: var(--shadow);
+  min-width: 160px; font-variant-numeric: tabular-nums;
+}
+.tip .t { font-weight: 600; margin-bottom: 4px; }
+.tip .r { display: flex; justify-content: space-between; gap: 14px; align-items: center; }
+.tip .r > span:first-child { display: inline-flex; gap: 6px; align-items: center; color: var(--ink-2); }
+.note { font-size: 12px; color: var(--ink-3); margin: 8px 0 0; }
+
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.tbl-wrap { overflow-x: auto; margin: 0 -4px; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 14px; }
+th, td { text-align: left; padding: 8px 4px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+th { font: 500 11px var(--f-body); color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
+td.num, th.num { text-align: right; }
+td.addr { white-space: normal; min-width: 180px; }
+td .mono { font-family: var(--f-mono); font-size: 12.5px; }
+.pill { font: 500 11px var(--f-body); padding: 2px 8px; border-radius: 99px; display: inline-flex; gap: 5px; align-items: center; border: 1px solid var(--rule); color: var(--ink-2); }
+.more { margin-top: 10px; font: 500 13px var(--f-body); color: var(--accent); background: none; border: 0; padding: 4px 0; cursor: pointer; }
+details summary { cursor: pointer; font: 600 14px var(--f-display); }
+details[open] summary { margin-bottom: 10px; }
+footer { font-size: 12px; color: var(--ink-3); line-height: 1.6; max-width: 80ch; }
+footer p { margin: 0 0 6px; }
+.loading { color: var(--ink-3); padding: 40px 0; text-align: center; }
+
+@media (max-width: 720px) {
+  .figs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fig .v { font-size: 22px; }
+  .panel { padding: 16px; }
+  #recent th:nth-child(4), #recent td:nth-child(4) { display: none; }
+  #recent td, #recent th { white-space: normal; }
+  td.addr { min-width: 0; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chart path.ln { transition: d .3s; }
+}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><b>NSW Suburb Prices</b></div>
+    <div class="search" role="combobox" aria-haspopup="listbox" aria-owns="sug" aria-expanded="false" id="cb">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input id="q" type="search" autocomplete="off" placeholder="Search a suburb or postcode" aria-label="Search a suburb or postcode" aria-autocomplete="list" aria-controls="sug">
+      <ul class="list" id="sug" role="listbox" hidden></ul>
+    </div>
+  </div>
+
+  <section class="panel" id="summary">
+    <div class="head"><h1 id="name">Loading suburbs…</h1><span class="pc" id="pc"></span></div>
+    <p class="sub" id="subline">Reading 37 years of NSW sales.</p>
+    <div class="figs" id="figs"></div>
+  </section>
+
+  <section class="panel">
+    <div class="chead">
+      <h2>Median sale price by year</h2>
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Period">
+          <button type="button" data-range="0" aria-pressed="true">All years</button>
+          <button type="button" data-range="20" aria-pressed="false">20 yrs</button>
+          <button type="button" data-range="10" aria-pressed="false">10 yrs</button>
+        </div>
+        <label class="chk"><input type="checkbox" id="nswToggle"> Compare with NSW</label>
+      </div>
+    </div>
+    <div class="legend" id="legend1"></div>
+    <div class="chart" id="priceChart"></div>
+    <p class="note" id="priceNote"></p>
+  </section>
+
+  <section class="panel">
+    <div class="chead"><h2>Sales per year</h2><div class="legend" id="legend2"></div></div>
+    <div class="chart" id="volChart"></div>
+    <p class="note">Weekly files are added as sales are registered, so the latest months fill in over the following weeks.</p>
+  </section>
+
+  <section class="panel">
+    <div class="chead">
+      <h2>Recent sales</h2>
+      <div class="seg" role="group" aria-label="Property type">
+        <button type="button" data-t="" aria-pressed="true">All</button>
+        <button type="button" data-t="h" aria-pressed="false">Houses</button>
+        <button type="button" data-t="u" aria-pressed="false">Units</button>
+      </div>
+    </div>
+    <div class="tbl-wrap"><table id="recent"><thead><tr><th>Contract date</th><th>Address</th><th>Type</th><th class="num">Land</th><th class="num">Price</th></tr></thead><tbody></tbody></table></div>
+    <button type="button" class="more" id="moreBtn" hidden>Show more</button>
+  </section>
+
+  <section class="panel">
+    <details id="yearly">
+      <summary>Yearly figures table</summary>
+      <div class="tbl-wrap"><table id="ytbl"><thead><tr><th>Year</th><th class="num">House median</th><th class="num">Houses sold</th><th class="num">Unit median</th><th class="num">Units sold</th></tr></thead><tbody></tbody></table></div>
+    </details>
+  </section>
+
+  <footer id="foot">
+    <p>Source: NSW Valuer General bulk property sales information, licensed CC BY 4.0. Prices are by contract date.</p>
+    <p>Medians leave out sales flagged in cleaning (impossible dates, missing or zero price, sales that cover several properties) and sales under $10,000. A yearly median is shown only when it rests on at least 5 sales. Units are strata titles; houses are other residences. Before March 2001 the records carry no property type, so those years use residential zoning and strata plans instead, and house figures can include some vacant lots.</p>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const $ = (s, el = document) => el.querySelector(s);
+  const NS = "http://www.w3.org/2000/svg";
+  const state = { data: null, sub: null, range: 0, nsw: false, t: "", shown: 15, recent: {}, shard: {} };
+  const LS = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } };
+
+  const fmt$ = (v) => {
+    if (v == null) return "–";
+    if (v >= 1e6) return "$" + (v / 1e6).toFixed(v >= 1e7 ? 1 : 2).replace(/\.?0+$/, "") + "M";
+    if (v >= 1e3) return "$" + Math.round(v / 1e3) + "k";
+    return "$" + v;
+  };
+  const fmtFull = (v) => "$" + v.toLocaleString("en-AU");
+  const fmtN = (v) => v.toLocaleString("en-AU");
+  const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const fmtDate = (s) => { const [y, m, d] = s.split("-"); return `${+d} ${MON[+m - 1]} ${y}`; };
+  const cssv = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const el = (tag, attrs = {}, parent) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  };
+
+  // ---------- load ----------
+  fetch("data/suburbs.json").then(r => r.json()).then(d => {
+    state.data = d;
+    d.byId = new Map(d.suburbs.map(s => [s.id, s]));
+    d.search = d.suburbs.map(s => ({ s, key: (s.name + " " + s.pc).toLowerCase() }));
+    const data_to = d.meta.data_to;
+    const last = d.meta.years[d.meta.years.length - 1];
+    d.partial = !data_to.endsWith("-12-31");
+    d.lastFull = d.partial ? last - 1 : last;
+    d.partialLabel = d.partial ? `${last} (Jan to ${MON[+data_to.slice(5, 7) - 1]})` : String(last);
+    const hash = decodeURIComponent(location.hash.slice(1));
+    const saved = LS("suburb");
+    const pick = d.byId.get(hash) || d.byId.get(saved) || d.byId.get("paddington-2021") || d.suburbs[0];
+    select(pick.id, false);
+  }).catch(() => { $("#name").textContent = "Couldn't load the suburb data"; $("#subline").textContent = "Reload the page to try again."; });
+
+  window.addEventListener("hashchange", () => {
+    const id = decodeURIComponent(location.hash.slice(1));
+    if (state.data && state.data.byId.has(id) && id !== state.sub?.id) select(id, false);
+  });
+
+  function select(id, push = true) {
+    const s = state.data.byId.get(id);
+    state.sub = s; state.shown = 15;
+    if (push) { try { history.replaceState(null, "", "#" + id); } catch (e) { location.hash = id; } }
+    LS("suburb", id);
+    renderSummary(); renderPrice(); renderVol(); renderYearly(); loadRecent();
+  }
+
+  // ---------- search ----------
+  const q = $("#q"), list = $("#sug"), cb = $("#cb");
+  let opts = [], active = -1;
+  function suggest() {
+    const v = q.value.trim().toLowerCase();
+    if (!v || !state.data) { close(); return; }
+    const starts = [], inner = [];
+    for (const it of state.data.search) {
+      const i = it.key.indexOf(v);
+      if (i === 0 || it.s.pc.startsWith(v)) starts.push(it.s);
+      else if (i > 0 && it.key[i - 1] === " ") inner.push(it.s);
+      if (starts.length > 40) break;
+    }
+    opts = starts.concat(inner).slice(0, 30);
+    list.innerHTML = "";
+    if (!opts.length) { list.innerHTML = '<li class="empty">No suburb matches. Suburbs need at least 30 sales to appear.</li>'; }
+    opts.forEach((s, i) => {
+      const li = document.createElement("li");
+      li.id = "opt" + i; li.setAttribute("role", "option"); li.setAttribute("aria-selected", i === 0);
+      li.innerHTML = `<b></b><span></span>`;
+      li.firstChild.textContent = s.name; li.lastChild.textContent = s.pc;
+      li.addEventListener("mousedown", (e) => { e.preventDefault(); choose(i); });
+      list.appendChild(li);
+    });
+    active = opts.length ? 0 : -1;
+    list.hidden = false; cb.setAttribute("aria-expanded", "true");
+  }
+  function close() { list.hidden = true; cb.setAttribute("aria-expanded", "false"); active = -1; }
+  function choose(i) { const s = opts[i]; if (!s) return; q.value = ""; close(); q.blur(); select(s.id); }
+  function move(d) {
+    if (!opts.length) return;
+    active = (active + d + opts.length) % opts.length;
+    [...list.children].forEach((li, i) => li.setAttribute("aria-selected", i === active));
+    list.children[active].scrollIntoView({ block: "nearest" });
+    q.setAttribute("aria-activedescendant", "opt" + active);
+  }
+  q.addEventListener("input", suggest);
+  q.addEventListener("focus", suggest);
+  q.addEventListener("blur", close);
+  q.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); move(1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); move(-1); }
+    else if (e.key === "Enter") { e.preventDefault(); choose(active); }
+    else if (e.key === "Escape") { close(); }
+  });
+
+  // ---------- summary ----------
+  function idxOf(y) { return state.data.meta.years.indexOf(y); }
+  function growth(arr, yrs) {
+    const d = state.data, i1 = idxOf(d.lastFull), i0 = idxOf(d.lastFull - yrs);
+    if (i0 < 0 || arr[i0] == null || arr[i1] == null) return null;
+    const total = arr[i1] / arr[i0] - 1;
+    return { total, pa: Math.pow(arr[i1] / arr[i0], 1 / yrs) - 1 };
+  }
+  function pct(x, dp = 0) { return (x >= 0 ? "+" : "−") + Math.abs(x * 100).toFixed(dp) + "%"; }
+  function renderSummary() {
+    const s = state.sub, d = state.data;
+    $("#name").textContent = s.name;
+    $("#pc").textContent = s.pc ? "NSW " + s.pc : "NSW";
+    document.title = `${s.name} ${s.pc} · NSW Suburb Prices`;
+    const tot = s.hn.reduce((a, b) => a + b, 0) + s.un.reduce((a, b) => a + b, 0);
+    $("#subline").textContent = `${fmtN(tot)} sales recorded since 1990. Latest contract in the data: ${fmtDate(d.meta.data_to)}.` + (s.dup ? ` Another NSW locality shares this name; this is the ${s.pc} one.` : "");
+    const g10h = growth(s.h, 10), g10u = growth(s.u, 10);
+    const fig = (k, sw, v, n) => `<div class="fig"><div class="k">${sw ? `<i class="sw ${sw}"></i>` : ""}${k}</div><div class="v">${v}</div><div class="n">${n}</div></div>`;
+    const n12 = (s.h12n || 0) + (s.u12n || 0);
+    const sub12 = (k) => !s[k + "12n"] ? `No ${k === "h" ? "house" : "unit"} sales` : s[k + "12"] == null ? `Only ${s[k + "12n"]} sales, too few for a median` : `${fmtN(s[k + "12n"])} sales · NSW ${fmt$(d.nsw[k + "12"])}`;
+    $("#figs").innerHTML =
+      fig("House median, last 12 months", "h", fmt$(s.h12), sub12("h")) +
+      fig("Unit median, last 12 months", "u", fmt$(s.u12), sub12("u")) +
+      fig(`House growth, ${d.lastFull - 10} to ${d.lastFull}`, "h", g10h ? pct(g10h.total) : "–", g10h ? `${pct(g10h.pa, 1)} a year` : "Not enough sales to compare") +
+      fig(`Unit growth, ${d.lastFull - 10} to ${d.lastFull}`, "u", g10u ? pct(g10u.total) : "–", g10u ? `${pct(g10u.pa, 1)} a year` : "Not enough sales to compare");
+  }
+
+  // ---------- chart helpers ----------
+  function niceTicks(max, n = 5) {
+    const raw = max / n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw);
+    const top = Math.ceil(max / step) * step;
+    const t = []; for (let v = 0; v <= top + 1e-9; v += step) t.push(v);
+    return t;
+  }
+  function frame(host, H) {
+    host.innerHTML = "";
+    const W = Math.max(300, host.clientWidth);
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img" }, host);
+    return { svg, W, H };
+  }
+  function yearsInRange() {
+    const ys = state.data.meta.years;
+    return state.range ? ys.filter(y => y > ys[ys.length - 1] - state.range - 1) : ys;
+  }
+  function xAxis(svg, ys, x, y0, W) {
+    const step = W < 520 ? (ys.length > 25 ? 10 : 5) : (ys.length > 25 ? 5 : 2);
+    ys.forEach(y => {
+      if (y % step !== 0 && y !== ys[0]) return;
+      if (y === ys[0] && y % step !== 0 && ys.some(o => o % step === 0 && o - y < step / 2 + 1)) return;
+      const t = el("text", { x: x(y), y: y0 + 18, "text-anchor": "middle" }, svg); t.textContent = y;
+    });
+    el("line", { x1: x(ys[0]) - 6, x2: x(ys[ys.length - 1]) + 6, y1: y0, y2: y0, stroke: cssv("--axis"), "stroke-width": 1 }, svg);
+  }
+  function tipAt(host, x, y, html, W) {
+    let tip = host.querySelector(".tip");
+    if (!tip) { tip = document.createElement("div"); tip.className = "tip"; host.appendChild(tip); }
+    tip.innerHTML = html; tip.hidden = false;
+    const tw = tip.offsetWidth;
+    let left = x + 14; if (left + tw > W) left = x - tw - 14; if (left < 0) left = 0;
+    tip.style.left = left + "px"; tip.style.top = Math.max(0, y) + "px";
+  }
+  function hideTip(host) { const t = host.querySelector(".tip"); if (t) t.hidden = true; }
+
+  // ---------- price chart ----------
+  function legend1() {
+    const s = state.sub, hasU = s.u.some(v => v != null), hasH = s.h.some(v => v != null);
+    let h = "";
+    if (hasH) h += `<span><i class="lgline" style="border-color:var(--house)"></i>Houses</span>`;
+    if (hasU) h += `<span><i class="lgline" style="border-color:var(--unit)"></i>Units</span>`;
+    if (state.nsw) h += `<span><i class="lgline dash" style="border-color:var(--ink-3)"></i>NSW median (same type)</span>`;
+    $("#legend1").innerHTML = h;
+  }
+  function renderPrice() {
+    legend1();
+    const host = $("#priceChart"), s = state.sub, d = state.data;
+    const ys = yearsInRange(), H = host.clientWidth < 520 ? 260 : 320;
+    const { svg, W } = frame(host, H);
+    svg.setAttribute("aria-label", `Median house and unit prices in ${s.name} by year`);
+    const m = { l: 52, r: 56, t: 12, b: 30 };
+    const series = [["h", "--house", "Houses"], ["u", "--unit", "Units"]].filter(([k]) => s[k].some(v => v != null));
+    const vals = [];
+    const yi = ys.map(idxOf);
+    series.forEach(([k]) => yi.forEach(i => { if (s[k][i] != null) vals.push(s[k][i]); if (state.nsw && d.nsw[k][i] != null) vals.push(d.nsw[k][i]); }));
+    if (!vals.length) { const t = el("text", { x: W / 2, y: H / 2, "text-anchor": "middle" }, svg); t.textContent = "Not enough sales in this period"; return; }
+    const ticks = niceTicks(Math.max(...vals) * 1.04);
+    const top = ticks[ticks.length - 1];
+    const x = (y) => m.l + (ys.length === 1 ? 0 : (y - ys[0]) / (ys[ys.length - 1] - ys[0])) * (W - m.l - m.r);
+    const yv = (v) => H - m.b - (v / top) * (H - m.t - m.b);
+    ticks.forEach(t => {
+      if (t > 0) el("line", { x1: m.l, x2: W - m.r + 6, y1: yv(t), y2: yv(t), stroke: cssv("--rule"), "stroke-width": 1 }, svg);
+      const tx = el("text", { x: m.l - 8, y: yv(t) + 4, "text-anchor": "end" }, svg); tx.textContent = t === 0 ? "$0" : fmt$(t);
+    });
+    xAxis(svg, ys, x, H - m.b, W);
+    const lastY = ys[ys.length - 1];
+    const path = (arr, partialDash) => {
+      // solid through complete years; the partial final year joins with a dashed segment
+      let dS = "", dP = "", pen = false, prev = null;
+      ys.forEach(y => {
+        const v = arr[idxOf(y)];
+        if (v == null) { pen = false; prev = null; return; }
+        const pt = `${x(y).toFixed(1)},${yv(v).toFixed(1)}`;
+        if (d.partial && y === lastY && partialDash) { if (prev) dP = `M${prev}L${pt}`; return; }
+        dS += (pen ? "L" : "M") + pt; pen = true; prev = pt;
+      });
+      return [dS, dP];
+    };
+    if (state.nsw) series.forEach(([k]) => {
+      const [a, b] = path(d.nsw[k], true);
+      el("path", { d: a + b, fill: "none", stroke: cssv("--ink-3"), "stroke-width": 1.5, "stroke-dasharray": "4 4", opacity: .8 }, svg);
+    });
+    const ends = [];
+    series.forEach(([k, c]) => {
+      const col = cssv(c), [a, b] = path(s[k], true);
+      el("path", { class: "ln", d: a, fill: "none", stroke: col, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+      if (b) el("path", { d: b, fill: "none", stroke: col, "stroke-width": 2, "stroke-dasharray": "3 4", "stroke-linecap": "round" }, svg);
+      // isolated points (neighbours missing) still need a mark
+      ys.forEach((y, j) => {
+        const v = s[k][idxOf(y)]; if (v == null) return;
+        const pv = j > 0 ? s[k][idxOf(ys[j - 1])] : null, nv = j < ys.length - 1 ? s[k][idxOf(ys[j + 1])] : null;
+        if (pv == null && nv == null) el("circle", { cx: x(y), cy: yv(v), r: 3, fill: col }, svg);
+      });
+      // end label: last value
+      for (let j = ys.length - 1; j >= 0; j--) {
+        const v = s[k][idxOf(ys[j])];
+        if (v != null) { ends.push({ k, col, y: ys[j], v, py: yv(v) }); break; }
+      }
+    });
+    ends.sort((a, b) => a.py - b.py);
+    if (ends.length === 2 && ends[1].py - ends[0].py < 14) { const mid = (ends[0].py + ends[1].py) / 2; ends[0].py = mid - 7; ends[1].py = mid + 7; }
+    ends.forEach(e => {
+      const part = d.partial && e.y === lastY;
+      el("circle", { cx: x(e.y), cy: yv(e.v), r: 4, fill: part ? cssv("--surface") : e.col, stroke: e.col, "stroke-width": 2 }, svg);
+      const t = el("text", { x: x(e.y) + 8, y: e.py + 4, "font-weight": 600 }, svg); t.style.fill = cssv("--ink"); t.textContent = fmt$(e.v);
+    });
+
+    // hover layer
+    const cross = el("line", { y1: m.t, y2: H - m.b, stroke: cssv("--axis"), "stroke-width": 1, visibility: "hidden" }, svg);
+    const dots = series.map(([k, c]) => el("circle", { r: 4.5, fill: cssv(c), stroke: cssv("--surface"), "stroke-width": 2, visibility: "hidden" }, svg));
+    const hit = el("rect", { x: m.l - 10, y: 0, width: W - m.l - m.r + 20, height: H, fill: "transparent" }, svg);
+    const move = (ev) => {
+      const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * (W / r.width);
+      let best = ys[0]; ys.forEach(y => { if (Math.abs(x(y) - px) < Math.abs(x(best) - px)) best = y; });
+      const i = idxOf(best);
+      cross.setAttribute("x1", x(best)); cross.setAttribute("x2", x(best)); cross.setAttribute("visibility", "visible");
+      let rows = "";
+      series.forEach(([k, c, label], j) => {
+        const v = s[k][i], n = s[k + "n"][i];
+        if (v != null) { dots[j].setAttribute("cx", x(best)); dots[j].setAttribute("cy", yv(v)); dots[j].setAttribute("visibility", "visible"); }
+        else dots[j].setAttribute("visibility", "hidden");
+        rows += `<div class="r"><span><i class="sw ${k}"></i>${label}</span><b>${v != null ? fmtFull(v) : (n ? "too few sales" : "no sales")}</b></div>`;
+        rows += `<div class="r"><span style="padding-left:16px">sales</span><span>${fmtN(n)}</span></div>`;
+        if (state.nsw && d.nsw[k][i] != null) rows += `<div class="r"><span style="padding-left:16px">NSW</span><span>${fmtFull(d.nsw[k][i])}</span></div>`;
+      });
+      const label = d.partial && best === lastY ? d.partialLabel : best;
+      tipAt(host, x(best) * (r.width / W), 10, `<div class="t">${label}</div>${rows}`, r.width);
+    };
+    hit.addEventListener("pointermove", move);
+    hit.addEventListener("pointerdown", move);
+    hit.addEventListener("pointerleave", () => { cross.setAttribute("visibility", "hidden"); dots.forEach(c => c.setAttribute("visibility", "hidden")); hideTip(host); });
+    $("#priceNote").textContent = (d.partial ? `${d.partialLabel} is a part year, drawn dashed. ` : "") + "Gaps mean fewer than 5 sales that year.";
+  }
+
+  // ---------- volume chart ----------
+  function renderVol() {
+    const host = $("#volChart"), s = state.sub, d = state.data;
+    $("#legend2").innerHTML = `<span><i class="sw h"></i>Houses</span><span><i class="sw u"></i>Units</span>`;
+    const ys = yearsInRange(), H = host.clientWidth < 520 ? 180 : 210;
+    const { svg, W } = frame(host, H);
+    svg.setAttribute("aria-label", `House and unit sales per year in ${s.name}`);
+    const m = { l: 52, r: 56, t: 10, b: 30 };
+    const tot = ys.map(y => s.hn[idxOf(y)] + s.un[idxOf(y)]);
+    const ticks = niceTicks(Math.max(4, ...tot), 4), top = ticks[ticks.length - 1];
+    const band = (W - m.l - m.r) / ys.length;
+    const x = (y) => m.l + (ys.indexOf(y) + .5) * band;
+    const yv = (v) => H - m.b - (v / top) * (H - m.t - m.b);
+    ticks.forEach(t => {
+      if (t > 0) el("line", { x1: m.l, x2: W - m.r + 6, y1: yv(t), y2: yv(t), stroke: cssv("--rule"), "stroke-width": 1 }, svg);
+      const tx = el("text", { x: m.l - 8, y: yv(t) + 4, "text-anchor": "end" }, svg); tx.textContent = fmtN(t);
+    });
+    const bw = Math.max(2, Math.min(22, band - 2));
+    const hc = cssv("--house"), uc = cssv("--unit"), surf = cssv("--surface");
+    const lastY = ys[ys.length - 1];
+    const bars = [];
+    ys.forEach(y => {
+      const i = idxOf(y), h = s.hn[i], u = s.un[i], bx = x(y) - bw / 2;
+      const g = el("g", {}, svg);
+      const part = d.partial && y === lastY;
+      const hy = yv(h), uy = yv(h + u);
+      if (h) el("rect", { x: bx, y: hy, width: bw, height: H - m.b - hy, fill: hc, opacity: part ? .55 : 1, rx: u ? 0 : Math.min(3, bw / 3) }, g);
+      if (u) {
+        const top2 = uy, bottom = h ? hy - 2 : H - m.b;
+        if (bottom - top2 > 0) el("rect", { x: bx, y: top2, width: bw, height: bottom - top2, fill: uc, opacity: part ? .55 : 1, rx: Math.min(3, bw / 3) }, g);
+      }
+      bars.push({ y, i, cx: x(y), top: uy });
+    });
+    xAxis(svg, ys, (y) => x(y), H - m.b, W);
+    const hl = el("rect", { y: m.t, height: H - m.t - m.b, width: band, fill: cssv("--ink"), opacity: 0, "pointer-events": "none" }, svg);
+    svg.insertBefore(hl, svg.firstChild);
+    const hit = el("rect", { x: m.l, y: 0, width: W - m.l - m.r, height: H, fill: "transparent" }, svg);
+    const move = (ev) => {
+      const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * (W / r.width);
+      const j = Math.max(0, Math.min(ys.length - 1, Math.floor((px - m.l) / band))), b = bars[j];
+      hl.setAttribute("x", m.l + j * band); hl.setAttribute("opacity", .05);
+      const label = d.partial && b.y === lastY ? d.partialLabel : b.y;
+      tipAt(host, b.cx * (r.width / W), 4, `<div class="t">${label}</div><div class="r"><span><i class="sw h"></i>Houses</span><b>${fmtN(s.hn[b.i])}</b></div><div class="r"><span><i class="sw u"></i>Units</span><b>${fmtN(s.un[b.i])}</b></div>`, r.width);
+    };
+    hit.addEventListener("pointermove", move);
+    hit.addEventListener("pointerdown", move);
+    hit.addEventListener("pointerleave", () => { hl.setAttribute("opacity", 0); hideTip(host); });
+  }
+
+  // ---------- yearly table ----------
+  function renderYearly() {
+    const s = state.sub, d = state.data, tb = $("#ytbl tbody");
+    const rows = d.meta.years.map((y, i) => [y, i]).reverse().filter(([, i]) => s.hn[i] + s.un[i] > 0);
+    tb.innerHTML = rows.map(([y, i]) => `<tr><td>${d.partial && y === d.meta.years[d.meta.years.length - 1] ? d.partialLabel : y}</td><td class="num">${s.h[i] != null ? fmtFull(s.h[i]) : "–"}</td><td class="num">${fmtN(s.hn[i])}</td><td class="num">${s.u[i] != null ? fmtFull(s.u[i]) : "–"}</td><td class="num">${fmtN(s.un[i])}</td></tr>`).join("");
+  }
+
+  // ---------- recent sales ----------
+  function loadRecent() {
+    const s = state.sub, L = /[a-z]/.test(s.id[0]) ? s.id[0].toUpperCase() : "0";
+    const tb = $("#recent tbody");
+    if (state.shard[L]) { renderRecent(); return; }
+    tb.innerHTML = `<tr><td colspan="5" class="loading">Loading recent sales…</td></tr>`;
+    fetch(`data/recent/${L}.json`).then(r => r.json()).then(j => { state.shard[L] = j; if (state.sub === s) renderRecent(); })
+      .catch(() => { tb.innerHTML = `<tr><td colspan="5" class="loading">Couldn't load recent sales. Reload the page to try again.</td></tr>`; });
+  }
+  function renderRecent() {
+    const s = state.sub, L = /[a-z]/.test(s.id[0]) ? s.id[0].toUpperCase() : "0";
+    const all = (state.shard[L] || {})[s.id] || [];
+    const rows = all.filter(r => !state.t || r[2] === state.t);
+    const tb = $("#recent tbody");
+    if (!rows.length) { tb.innerHTML = `<tr><td colspan="5" class="loading">No ${state.t === "h" ? "house" : state.t === "u" ? "unit" : ""} sales among the latest ${all.length} in this suburb.</td></tr>`; $("#moreBtn").hidden = true; return; }
+    tb.innerHTML = "";
+    rows.slice(0, state.shown).forEach(([dt, price, t, addr, area]) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${fmtDate(dt)}</td><td class="addr"></td><td><span class="pill"><i class="sw ${t}"></i>${t === "h" ? "House" : "Unit"}</span></td><td class="num">${area ? `<span class="mono">${fmtN(area)} m²</span>` : "–"}</td><td class="num"><span class="mono">${fmtFull(price)}</span></td>`;
+      tr.children[1].textContent = titleAddr(addr);
+      tb.appendChild(tr);
+    });
+    const btn = $("#moreBtn");
+    btn.hidden = rows.length <= state.shown;
+    btn.textContent = `Show ${Math.min(rows.length - state.shown, 25)} more`;
+  }
+  const titleAddr = (a) => a.toLowerCase().replace(/\b([a-z])/g, c => c.toUpperCase()).replace(/\s\d{4}$/, "");
+  $("#moreBtn").addEventListener("click", () => { state.shown += 25; renderRecent(); });
+
+  // ---------- controls ----------
+  document.querySelectorAll("[data-range]").forEach(b => b.addEventListener("click", () => {
+    state.range = +b.dataset.range;
+    document.querySelectorAll("[data-range]").forEach(o => o.setAttribute("aria-pressed", o === b));
+    renderPrice(); renderVol();
+  }));
+  document.querySelectorAll("[data-t]").forEach(b => b.addEventListener("click", () => {
+    state.t = b.dataset.t; state.shown = 15;
+    document.querySelectorAll("[data-t]").forEach(o => o.setAttribute("aria-pressed", o === b));
+    renderRecent();
+  }));
+  $("#nswToggle").addEventListener("change", (e) => { state.nsw = e.target.checked; renderPrice(); });
+  let rt; const redraw = () => { if (state.sub) { renderPrice(); renderVol(); } };
+  window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(redraw, 120); });
+  try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", redraw); } catch (e) {}
+  new MutationObserver(redraw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+})();
+</script>

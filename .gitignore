@@ -2,3 +2,4 @@
 *.parquet
 *.duckdb
 __pycache__/
+explorer/data/
