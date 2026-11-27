@@ -1,0 +1,4 @@
+*.zip
+*.parquet
+*.duckdb
+__pycache__/
