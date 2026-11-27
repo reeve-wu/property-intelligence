@@ -46,9 +46,9 @@ COPY (
         s.street_name,
         s.locality,
         s.postcode,
+        -- concat() treats NULL as '', so a missing unit number doesn't drop the house number
         concat_ws(' ',
-            CASE WHEN s.unit_number IS NOT NULL THEN s.unit_number || '/' END
-                || coalesce(s.house_number, ''),
+            nullif(concat(s.unit_number || '/', s.house_number), ''),
             s.street_name, s.locality, s.postcode) AS address,
         s.property_name,
         s.contract_date,
