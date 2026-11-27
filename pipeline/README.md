@@ -14,3 +14,6 @@ Analysis tips:
 - Filter `contract_date_ok AND price_ok` for price stats.
 - `n_properties_in_sale > 1` means the price covers several properties; exclude for medians.
 - `nature_of_property`: R = residence, V = vacant land, 3 = other (current format only).
+3. `python -I pipeline/suburb_aggregates.py sales.parquet explorer/data`
+   Per-suburb yearly house/unit medians and counts, last-12-month figures and the
+   latest 40 sales per suburb, for the suburb price explorer (`explorer/`). About 5 seconds.
